@@ -1,0 +1,47 @@
+name: Update GitHub pages
+on:
+  push:
+    branches: [main]
+jobs:
+  publish:
+    if: github.repository == 'freeCodeCamp/chapter'
+    name: Publish to GitHub pages
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        node-version: [18.x]
+    services:
+      postgres:
+        # For now schema spy doesn't get on with postgres:14
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: chapter
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install
+        run: npm ci
+      - name: Create the schema
+        env:
+          DB_PORT: 5432
+        run: "npm run prisma migrate reset -- --force --skip-generate --skip-seed"
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3
+        with:
+          ref: gh-pages
+      - name: Run SchemaSpy
+        run: |
+          docker run --user="root" --network="host" -v "$PWD:/output" schemaspy/schemaspy -vizjs -t pgsql -db chapter -host localhost -port 5432 -u postgres -p password
+
+      - name: Publish to GitHub pages
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "docs: update database documentation"
+          git push

@@ -1,0 +1,41 @@
+image:
+  file: .gitpod.dockerfile
+ports:
+  - port: 3000
+    onOpen: notify
+  - port: 5432
+    onOpen: ignore
+  - port: 5000
+    onOpen: ignore
+    visibility: public
+tasks:
+  # both .bashrc and nvm settings get wiped when a workspace is restarted, so
+  # they need setting here
+  - before: |
+      export NEXT_PUBLIC_SERVER_URL=$(gp url 5000)
+      export CLIENT_LOCATION=$(gp url 3000)
+      export COOKIE_DOMAIN=gitpod.io
+      nvm install lts/gallium && nvm alias default lts/gallium
+    # the rest get persisted, so we can save time and use init:
+    init: | 
+      npm ci && npm install -g eslint
+      pg_ctl restart
+    command: |
+      npm run -w=server build && npm run db:migrate:reset
+      npm run both
+github:
+  prebuilds:
+    # enable for all branches in this repo (defaults to false)
+    branches: true
+    # enable for pull requests coming from this repo (defaults to true)
+    pullRequests: true
+    # enable for pull requests coming from forks (defaults to false)
+    pullRequestsFromForks: true
+    # add a check to pull requests (defaults to true)
+    addCheck: true
+    # add a "Review in Gitpod" button as a comment to pull requests (defaults to false)
+    addComment: true
+    # add a "Review in Gitpod" button to the pull request's description (defaults to false)
+    addBadge: false
+    # add a label once the prebuild is ready to pull requests (defaults to false)
+    addLabel: false
